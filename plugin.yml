@@ -1,0 +1,25 @@
+name: LoginSecurity
+main: LoginSecurity\LoginSecurity
+api: 1.12.0
+version: 0.3.02023
+author: hoyinm14mc
+update: Fixed IP address login bug
+
+commands:
+  unregister:
+    usage: /unregister
+    description: Unregister your LoginSecurity account
+    permission: loginsecurity.command.unregister
+    aliases: ["rmpass"]
+  changepass:
+    usage: /changepass <old> <new> <new>
+    description: change your password
+    permission: loginsecurity.command.changepass
+    aliases: ["changepassword", "changepw"]
+
+permissions:
+  loginsecurity.command.unregister:
+    default: true
+  loginsecurity.command.changepass:
+    default: true
+    
