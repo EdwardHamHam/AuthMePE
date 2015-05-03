@@ -111,6 +111,8 @@ class LoginSecurity extends PluginBase implements Listener{
 				if(!isset($t[$event->getPlayer()->getName()]["password"])){
 					if(strlen($event->getMessage()) < $this->configFile()->get("min-password-length")){
 			      $event->getPlayer()->sendMessage(TextFormat::RED."The password is not long enough!");
+			    }else if(strpos($event->getMessage(), $event->getPlayer()->getName()) !== false){
+			    	$event->getPlayer()->sendMessage(TextFormat::RED."The password should not contain your username!");
      		}else{
      			$this->register($event->getPlayer(), $event->getMessage());
 					  $event->getPlayer()->sendMessage(TextFormat::YELLOW."Type your password again to confirm.");
@@ -156,7 +158,7 @@ class LoginSecurity extends PluginBase implements Listener{
 			  if(strpos($msg,$pw) !== false && $msg{0} != "/"){
 				  $event->getPlayer()->sendMessage("Do not tell your password to other people!");
 				  $event->setCancelled(true);
-		  	}
+		  	  }
 			}
 		}
 	}
@@ -173,8 +175,7 @@ class LoginSecurity extends PluginBase implements Listener{
 			if($t[$event->getPlayer()->getName()]["ip"] == "yes"){
 				if($event->getPlayer()->getAddress() == $this->ip->get($event->getPlayer()->getName())){
 					$this->login[$event->getPlayer()->getName()] = $event->getPlayer()->getName();
-					$event->getPlayer()->sendMessage(TextFormat::WHITE."[IP] We remember you!!\n".TextFormat::GREEN."You are now logged in.");
-					$event->getPlayer()->sendPopup(TextFormat::GOLD."Welcome ".TextFormat::AQUA.$event->getPlayer()->getName().TextFormat::GREEN."\nYou logged in with IP.");
+					$event->getPlayer()->sendMessage(TextFormat::WHITE."[IP] §2Welcome back! §6We remember you!!\n".TextFormat::GREEN."You are now logged in.");
 				}else{
 					$event->getPlayer()->sendMessage(TextFormat::WHITE."Please type your password in chat to login.");
 					$this->ip->set($event->getPlayer()->getName(), $event->getPlayer()->getAddress());
@@ -247,6 +248,38 @@ class LoginSecurity extends PluginBase implements Listener{
 			  }
 			break;
 			case "changepass":
+			  $t = $this->data->getAll();
+			  if($issuer->hasPermission("loginsecurity.command.changepass")){
+			  	if($issuer instanceof Player){
+			  		if(count($args) == 3){
+			  			if($args[0] == $t[$issuer->getName()]["password"]){
+			  				if($args[1] == $args[2]){
+			  					$t[$issuer->getName()]["password"] = $args[1];
+			  					$this->data->setAll($t);
+			  					$this->data->save();
+			  					$issuer->sendMessage(TextFormat::GREEN."Password changed to ".TextFormat::AQUA.TextFormat::BOLD.$args[1]);
+			  					return true;
+			  				}else{
+			  					$issuer->sendMessage(TextFormat::RED."Confirm password INCORRECT");
+			  					return true;
+			  				}
+			  			}else{
+			  				$issuer->sendMessage(TextFormat::RED."Old password INCORRECT!");
+			  				return true;
+			  			}
+			  		}else{
+			  			return false;
+			  		}
+			  	}else{
+			  		$issuer->sendMessage("Please run this command in-game!");
+			  		return true;
+			  	}
+			  }else{
+			  	 $issuer->sendMessage("You have no permission for this!");
+			  	 return true;
+			  }
+			break;
+			case "email":
 			  $t = $this->data->getAll();
 			  if($issuer->hasPermission("loginsecurity.command.changepass")){
 			  	if($issuer instanceof Player){
@@ -368,8 +401,8 @@ class LoginSecurity extends PluginBase implements Listener{
 namespace LoginSecurity;
 
 use pocketmine\scheduler\PluginTask;
-use LoginSecurity\LoginSecurity;
 use pocketmine\utils\TextFormat;
+use LoginSecurity\LoginSecurity;
 
 class Task extends PluginTask{
 	public $plugin;
