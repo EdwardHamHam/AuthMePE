@@ -1,9 +1,9 @@
 name: LoginSecurity
 main: LoginSecurity\LoginSecurity
 api: 1.12.0
-version: 0.4.01002
-author: hoyinm14mc
-update: Implementing password & name checking system
+version: 0.5.01004
+author: hoyinm
+update: Many things..
 
 commands:
   unregister:
@@ -16,10 +16,16 @@ commands:
     description: change your password
     permission: loginsecurity.command.changepass
     aliases: ["changepassword", "changepw"]
+  email:
+    usage: /email <mail>
+    description: Add your email
+    permission: loginsecurity.command.email
 
 permissions:
   loginsecurity.command.unregister:
     default: true
   loginsecurity.command.changepass:
+    default: true
+  loginsecurity.command.email:
     default: true
     
