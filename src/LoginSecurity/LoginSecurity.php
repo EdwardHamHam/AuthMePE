@@ -23,6 +23,10 @@ use pocketmine\command\Command;
 use LoginSecurity\Task;
 use LoginSecurity\Task2;
 
+use LoginSecurity\BaseEvent;
+use LoginSecurity\PlayerLoginEvent;
+use LoginSecurity\PlayerLogoutEvent;
+
 class LoginSecurity extends PluginBase implements Listener{
 	
 	private $login = array();
@@ -42,7 +46,7 @@ class LoginSecurity extends PluginBase implements Listener{
 	  }
 	  $this->cfg->save();
 	  if(!is_numeric($this->cfg->get("login-timeout"))){
-	  	$this->getLogger()->critical("'login-timeout'/'min-password-length' in ".$this->getPluginDir()."config.yml must be numeric!");
+	  	$this->getLogger()->error("'login-timeout'/'min-password-length' in ".$this->getPluginDir()."config.yml must be numeric!");
 	  	$this->getServer()->getPluginManager()->disablePlugin($this);
 	  }
 		if(!is_dir($this->getPluginDir()."data")){
@@ -63,6 +67,18 @@ class LoginSecurity extends PluginBase implements Listener{
 		return $this->cfg;
 	}
 	
+	public function getVersion(){
+		return "0.5.01004";
+	}
+	
+	//HAHA high security~
+	private function salt($pw){
+		return sha1(md5($this->salt2($pw).$pw.$this->salt2($pw)));
+	}
+	private function salt2($word){
+		return hash('sha256', $word);
+	}
+	
 	public function isLoggedIn(Player $player){
 		return in_array($player->getName(), $this->login);
 	}
@@ -72,14 +88,23 @@ class LoginSecurity extends PluginBase implements Listener{
 		return isset($t[$player->getName()]["ip"]);
 	}
 	
+	public function auth(Player $player, $method){	
+		$this->getServer()->getPluginManager()->callEvent($event = new PlayerLoginEvent($this, $player, $method));
+		if($event->isCancelled()){
+			return false;
+		}
+		
+		$this->login[$event->getPlayer()->getName()] = $event->getPlayer()->getName();
+	}
+	
 	public function login(Player $player, $password){
 		$t = $this->data->getAll();
-		if($password != $t[$player->getName()]["password"]){
+		if(md5($password.$this->salt($password)) != $t[$player->getName()]["password"]){
 			$player->sendMessage(TextFormat::RED."Wrong password!");
 			return false;
 		}
 		
-		$this->login[$player->getName()] = $player->getName();
+		$this->auth($event->getPlayer(), 0);
 		$player->sendMessage(TextFormat::GREEN."You are now logged in.");
 	}
 	
@@ -90,13 +115,15 @@ class LoginSecurity extends PluginBase implements Listener{
 			return false;
 		}
 		
+		$this->getServer()->getPluginManager()->callEvent($event = new PlayerLogoutEvent($this, $player, $method));
+		
 		unset($this->login[$player->getName()]);
 		$player->sendMessage(TextFormat::GREEN."You have logged out.");
 	}
 	
 	public function register(Player $player, $pw1){
 		$t = $this->data->getAll();
-		$t[$player->getName()]["password"] = $pw1;
+		$t[$player->getName()]["password"] = md5($pw1.$this->salt($pw1));
 		$this->data->setAll($t);
 		$this->data->save();
 	}
@@ -111,9 +138,7 @@ class LoginSecurity extends PluginBase implements Listener{
 				if(!isset($t[$event->getPlayer()->getName()]["password"])){
 					if(strlen($event->getMessage()) < $this->configFile()->get("min-password-length")){
 			      $event->getPlayer()->sendMessage(TextFormat::RED."The password is not long enough!");
-			    }else if(strpos($event->getMessage(), $event->getPlayer()->getName()) !== false){
-			    	$event->getPlayer()->sendMessage(TextFormat::RED."The password should not contain your username!");
-     		}else{
+			    }else{
      			$this->register($event->getPlayer(), $event->getMessage());
 					  $event->getPlayer()->sendMessage(TextFormat::YELLOW."Type your password again to confirm.");
      		}
@@ -123,14 +148,14 @@ class LoginSecurity extends PluginBase implements Listener{
 					$t[$event->getPlayer()->getName()]["confirm"] = $event->getMessage();
 					$this->data->setAll($t);
 					$this->data->save();
-					if($event->getMessage() != $t[$event->getPlayer()->getName()]["password"]){
+					if(md5($event->getMessage().$this->salt($event->getMessage())) != $t[$event->getPlayer()->getName()]["password"]){
 						$event->getPlayer()->sendMessage(TextFormat::YELLOW."Confirm password ".TextFormat::RED."INCORRECT".TextFormat::YELLOW."!\n".TextFormat::WHITE."Please type your password in chat to start register.");
 						$event->setCancelled(true);
 						unset($t[$event->getPlayer()->getName()]);
 						$this->data->setAll($t);
 						$this->data->save();
 					}else{
-						$event->getPlayer()->sendMessage(TextFormat::WHITE."Confirm password ".TextFormat::GREEN."CORRECT".TextFormat::YELLOW."!\n".TextFormat::WHITE."Your password is '".TextFormat::AQUA.TextFormat::BOLD.$t[$event->getPlayer()->getName()]["password"].TextFormat::WHITE.TextFormat::RESET."'");
+						$event->getPlayer()->sendMessage(TextFormat::WHITE."Confirm password ".TextFormat::GREEN."CORRECT".TextFormat::YELLOW."!\n".TextFormat::WHITE."Your password is '".TextFormat::AQUA.TextFormat::BOLD.$event->getMessage().TextFormat::WHITE.TextFormat::RESET."'");
 						$event->setCancelled(true);
 					}
 				}
@@ -144,7 +169,7 @@ class LoginSecurity extends PluginBase implements Listener{
 						 $this->ip->set($event->getPlayer()->getName(), $event->getPlayer()->getAddress());
 						 $this->data->setAll($t);
 						 $this->data->save();
-						 $event->getPlayer()->sendMessage(TextFormat::GREEN."You are now registered!\n".TextFormat::YELLOW."Type your password in chat to login.");
+						 $event->getPlayer()->sendMessage(TextFormat::GREEN."You are now registered!\n".TextFormat::YELLOW."Type your password in chat to login.\nYou may use '/email <email>' to enter your email.");
 						 $time = $this->configFile()->get("login-timeout");
 						 $this->getServer()->getScheduler()->scheduleDelayedTask(new Task2($this, $event->getPlayer()), ($time * 20));
 						 $event->setCancelled(true);
@@ -153,12 +178,12 @@ class LoginSecurity extends PluginBase implements Listener{
 			}
 		}else{
 			$pw = $t[$event->getPlayer()->getName()]["password"];
-			$msg = $event->getMessage();
+			$event->getMessage();
 			if(!empty($event->getMessage())){
-			  if(strpos($msg,$pw) !== false && $msg{0} != "/"){
+			  if(strpos(md5($event->getMessage().$this->salt($event->getMessage())), $pw) !== false && $msg{0} != "/"){
 				  $event->getPlayer()->sendMessage("Do not tell your password to other people!");
 				  $event->setCancelled(true);
-		  	  }
+		  	}
 			}
 		}
 	}
@@ -174,7 +199,7 @@ class LoginSecurity extends PluginBase implements Listener{
 		if($this->isRegistered($event->getPlayer())){
 			if($t[$event->getPlayer()->getName()]["ip"] == "yes"){
 				if($event->getPlayer()->getAddress() == $this->ip->get($event->getPlayer()->getName())){
-					$this->login[$event->getPlayer()->getName()] = $event->getPlayer()->getName();
+					$this->auth($event->getPlayer(), 1);
 					$event->getPlayer()->sendMessage(TextFormat::WHITE."[IP] §2Welcome back! §6We remember you!!\n".TextFormat::GREEN."You are now logged in.");
 				}else{
 					$event->getPlayer()->sendMessage(TextFormat::WHITE."Please type your password in chat to login.");
@@ -252,9 +277,9 @@ class LoginSecurity extends PluginBase implements Listener{
 			  if($issuer->hasPermission("loginsecurity.command.changepass")){
 			  	if($issuer instanceof Player){
 			  		if(count($args) == 3){
-			  			if($args[0] == $t[$issuer->getName()]["password"]){
+			  			if(md5($args[0].$this->salt($args[0])) == $t[$issuer->getName()]["password"]){
 			  				if($args[1] == $args[2]){
-			  					$t[$issuer->getName()]["password"] = $args[1];
+			  					$t[$issuer->getName()]["password"] = md5($args[1].$this->salt($args[1]));
 			  					$this->data->setAll($t);
 			  					$this->data->save();
 			  					$issuer->sendMessage(TextFormat::GREEN."Password changed to ".TextFormat::AQUA.TextFormat::BOLD.$args[1]);
@@ -280,23 +305,18 @@ class LoginSecurity extends PluginBase implements Listener{
 			  }
 			break;
 			case "email":
-			  $t = $this->data->getAll();
-			  if($issuer->hasPermission("loginsecurity.command.changepass")){
+			  if($issuer->hasPermission("loginsecurity.command.email")){
 			  	if($issuer instanceof Player){
-			  		if(count($args) == 3){
-			  			if($args[0] == $t[$issuer->getName()]["password"]){
-			  				if($args[1] == $args[2]){
-			  					$t[$issuer->getName()]["password"] = $args[1];
-			  					$this->data->setAll($t);
-			  					$this->data->save();
-			  					$issuer->sendMessage(TextFormat::GREEN."Password changed to ".TextFormat::AQUA.TextFormat::BOLD.$args[1]);
-			  					return true;
-			  				}else{
-			  					$issuer->sendMessage(TextFormat::RED."Confirm password INCORRECT");
-			  					return true;
-			  				}
+			  		if(isset($args[0])){
+			  			if(strpos("@", $args[0])){
+			  				 $t = $this->data->getAll();
+			  		     $t[$issuer->getName()]["email"] = $args[0];
+			  		     $this->data->setAll($t);
+			  		     $this->data->save();
+			  		     $issuer->sendMessage("§aEmail added successfully!\n§dAddress: §b".$args[0]);
+			  		     return true;
 			  			}else{
-			  				$issuer->sendMessage(TextFormat::RED."Old password INCORRECT!");
+			  				$issuer->sendMessage("§cPlease enter a valid mail address!");
 			  				return true;
 			  			}
 			  		}else{
@@ -400,9 +420,69 @@ class LoginSecurity extends PluginBase implements Listener{
 
 namespace LoginSecurity;
 
-use pocketmine\scheduler\PluginTask;
-use pocketmine\utils\TextFormat;
+use pocketmine\event\plugin\PluginEvent;
 use LoginSecurity\LoginSecurity;
+
+abstract class BaseEvent extends PluginEvent{
+	
+	public function __construct(LoginSecurity $plugin){
+		$this->plugin = $plugin;
+		parent::__construct($plugin);
+	}
+}
+
+namespace LoginSecurity;
+
+use pocketmine\Player;
+use pocketmine\event\Cancellable;
+
+use LoginSecurity\LoginSecurity;
+use LoginSecurity\BaseEvent;
+
+class PlayerLoginEvent extends BaseEvent implements Cancellable{
+	const PASSWORD = 0;
+	const IP = 1;
+	
+	public function __construct(LoginSecurity $plugin, Player $player, $method){
+		$this->player = $player;
+		$this->method = $method;
+		parent::__construct($plugin);
+	}
+	
+	public function getPlayer(){
+		return $this->player;
+	}
+	
+	public function getMethod(){
+		return $this->method;
+	}
+}
+
+namespace LoginSecurity;
+
+use pocketmine\Player;
+
+use LoginSecurity\LoginSecurity;
+use LoginSecurity\BaseEvent;
+
+class PlayerLogoutEvent extends BaseEvent{
+	
+	public function __construct(LoginSecurity $plugin, Player $player){
+		$this->player = $player;
+		parent::__construct($plugin);
+	}
+	
+	public function getPlayer(){
+		return $this->player;
+	}
+}
+
+
+namespace LoginSecurity;
+
+use pocketmine\scheduler\PluginTask;
+use LoginSecurity\LoginSecurity;
+use pocketmine\utils\TextFormat;
 
 class Task extends PluginTask{
 	public $plugin;
