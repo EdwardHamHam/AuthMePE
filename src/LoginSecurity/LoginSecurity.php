@@ -37,14 +37,14 @@ class LoginSecurity extends PluginBase implements Listener{
 			mkdir($this->getPluginDir());
 		}
 	  $this->cfg = new Config($this->getPluginDir()."config.yml", Config::YAML, array());
-	  $c = $this->cfg->getAll();
+	  $c = $this->configFile()->getAll();
 	  if(!isset($c["login-timeout"])){
-	  	$this->cfg->set("login-timeout", 25);
+	  	$this->configFile()->set("login-timeout", 25);
 	  }
 	  if(!isset($c["min-password-length"])){
-	  	$this->cfg->set("min-password-length", 6);
+	  	$this->configFile()->set("min-password-length", 6);
 	  }
-	  $this->cfg->save();
+	  $this->configFile()->save();
 	  if(!is_numeric($this->cfg->get("login-timeout"))){
 	  	$this->getLogger()->error("'login-timeout'/'min-password-length' in ".$this->getPluginDir()."config.yml must be numeric!");
 	  	$this->getServer()->getPluginManager()->disablePlugin($this);
@@ -54,7 +54,7 @@ class LoginSecurity extends PluginBase implements Listener{
 		}
 		$this->data = new Config($this->getPluginDir()."data/data.yml", Config::YAML, array());
 		$this->ip = new Config($this->getPluginDir()."data/ip.yml", Config::YAML, array());
-		$this->getServer()->getScheduler()->scheduleRepeatingTask(new Task($this), 30 * 4);
+		$this->getServer()->getScheduler()->scheduleRepeatingTask(new Task($this), 20 * 6);
 		$this->getServer()->getPluginManager()->registerEvents($this, $this);
 		$this->getLogger()->info(TextFormat::GREEN."Loaded Successfully!");
 	}
@@ -65,10 +65,6 @@ class LoginSecurity extends PluginBase implements Listener{
 	
 	public function configFile(){
 		return $this->cfg;
-	}
-	
-	public function getVersion(){
-		return "0.5.01004";
 	}
 	
 	//HAHA high security~
@@ -90,6 +86,7 @@ class LoginSecurity extends PluginBase implements Listener{
 	
 	public function auth(Player $player, $method){	
 		$this->getServer()->getPluginManager()->callEvent($event = new PlayerLoginEvent($this, $player, $method));
+		
 		if($event->isCancelled()){
 			return false;
 		}
@@ -104,7 +101,7 @@ class LoginSecurity extends PluginBase implements Listener{
 			return false;
 		}
 		
-		$this->auth($event->getPlayer(), 0);
+		$this->auth($player, 0);
 		$player->sendMessage(TextFormat::GREEN."You are now logged in.");
 	}
 	
