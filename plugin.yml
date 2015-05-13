@@ -1,31 +1,45 @@
-name: LoginSecurity
-main: LoginSecurity\LoginSecurity
+name: AuthMePE
+main: AuthMePE\AuthMePE
 api: 1.12.0
-version: 0.5.01004
+version: 0.1.7_beta
 author: hoyinm
-update: Many things..
+description: Port of most features of Bukkit's AuthMe_Reloaded
 
 commands:
   unregister:
     usage: /unregister
     description: Unregister your LoginSecurity account
-    permission: loginsecurity.command.unregister
+    permission: authmepe.command.unregister
     aliases: ["rmpass"]
   changepass:
     usage: /changepass <old> <new> <new>
     description: change your password
-    permission: loginsecurity.command.changepass
+    permission: authmepe.command.changepass
     aliases: ["changepassword", "changepw"]
   email:
     usage: /email <mail>
     description: Add your email
-    permission: loginsecurity.command.email
+    permission: authmepe.command.email
+  logout:
+    usage: /logout
+    description: Logs out from your account
+    permission: authmepe.command.logout
+  authme:
+    usage: /authme changepass|unregister <args...>
+    description: Admin command
+    permission: authmepe.command.authme
+    aliases: ["authmepe"]
 
 permissions:
-  loginsecurity.command.unregister:
+  authmepe.command.unregister:
     default: true
-  loginsecurity.command.changepass:
+  authmepe.command.changepass:
     default: true
-  loginsecurity.command.email:
+  authmepe.command.email:
     default: true
-    
+  authmepe.command.logout:
+    default: true
+  authmepe.command.authme:
+    default: op
+  authmepe.login.bypass:
+    default: false
