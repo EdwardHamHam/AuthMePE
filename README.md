@@ -1,2 +1,2 @@
-# LoginSecurityPE
-A port of Bukkit's LoginSecurity to PocketMine
+# AuthMePE
+A port of Bukkit's AuthMe_Reloaded to PocketMine
