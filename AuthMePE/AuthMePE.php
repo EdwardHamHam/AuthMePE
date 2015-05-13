@@ -121,7 +121,7 @@ class AuthMePE extends PluginBase implements Listener{
 	}
 	
 	public function auth(Player $player, $method){	
-		$this->getServer()->getPluginManager()->callEvent($event = new PlayerAuthEvent($this, $player, $method, $player->getAddress()));
+		$this->getServer()->getPluginManager()->callEvent($event = new PlayerAuthEvent($this, $player, $method));
 		if($event->isCancelled()){
 			return false;
 		}
@@ -592,6 +592,14 @@ class AuthMePE extends PluginBase implements Listener{
 	
 }
 
+/* OTHER
+ * ██████  █      ███   █████ █████
+ * █       █     █   █  █     █     
+ * █       █     █████  █████ █████
+ * █       █     █   █      █     █ 
+ * ██████  █████ █   █  █████ █████
+ */
+
 namespace AuthMePE;
 
 use pocketmine\event\plugin\PluginEvent;
@@ -624,10 +632,9 @@ class PlayerAuthEvent extends BaseEvent implements Cancellable{
 	const PERMISSION = 2;
 	const SESSION = 3;
 	
-	public function __construct(AuthMePE $plugin, Player $player, $method, $ip){
+	public function __construct(AuthMePE $plugin, Player $player, $method){
 		$this->player = $player;
 		$this->method = $method;
-		$this->ip = $ip;
 		parent::__construct($plugin);
 	}
 	
@@ -640,7 +647,7 @@ class PlayerAuthEvent extends BaseEvent implements Cancellable{
 	}
 	
 	public function getIp(){
-		return $this->ip;
+		return $this->player->getAddress();
 	}
 }
 
