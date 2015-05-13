@@ -2,7 +2,7 @@ name: AuthMePE
 main: AuthMePE\AuthMePE
 api: 1.12.0
 version: 0.1.7_beta
-author: hoyinm
+author: hoyinm & CyberCube-HK™
 description: Port of most features of Bukkit's AuthMe_Reloaded
 
 commands:
