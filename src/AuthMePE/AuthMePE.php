@@ -43,10 +43,14 @@ use AuthMePE\PlayerLoginTimeoutEvent;
 use AuthMePE\PlayerAuthSessionStartEvent;
 use AuthMePE\PlayerAuthSessionExpireEvent;
 
+use specter\network\SpecterPlayer;
+
 class AuthMePE extends PluginBase implements Listener{
 	
 	private $login = array();
 	private $session = array();
+	
+	private $specter = false;
 	
 	public function onEnable(){
 		if(!is_dir($this->getPluginDir())){
@@ -60,6 +64,12 @@ class AuthMePE extends PluginBase implements Listener{
 		}
 		$this->data = new Config($this->getPluginDir()."data/data.yml", Config::YAML, array());
 		$this->ip = new Config($this->getPluginDir()."data/ip.yml", Config::YAML, array());
+		$this->specter = false; //Force false
+		$sp = $this->getServer()->getPluginManager()->getPlugin("Specter");
+		if($sp !== null){
+			$this->getServer()->getLogger()->info("Loaded with Specter!");
+			$this->specter = true;
+		}
 		$this->getServer()->getScheduler()->scheduleRepeatingTask(new Task($this), 20 * 3);
 		$this->getServer()->getPluginManager()->registerEvents($this, $this);
 		$this->getLogger()->info(TextFormat::GREEN."Loaded Successfully!");
@@ -76,20 +86,19 @@ class AuthMePE extends PluginBase implements Listener{
 	public function reloadConfigFile(){
 		 $c = $this->cfg->getAll();
 	  if(!isset($c["login-timeout"])){
-	  	$this->cfg->set("login-timeout", 30);
+	  	$c["login-timeout"] = 30;
 	  }
 	  if(!isset($c["min-password-length"])){
-	  	$this->cfg->set("min-password-length", 6);
+	  	$c["min-password-length"] = 6;
 	  }
 	  if(!isset($c["sessions"])){
 	  	$c["sessions"]["enabled"] = true;
 	  	$c["sessions"]["session-login-available-minutes"] = 10;
-	  	$this->cfg->setAll($c);
 	  }
 	  if(!isset($c["email"])){
 	  	$c["email"]["remind-players-add-email"] = true;
-	  	$this->cfg->setAll($c);
 	  }
+	  $this->cfg->setAll($c);
 	  $this->cfg->save();
 	  if(!is_numeric($this->cfg->get("login-timeout"))){
 	  	$this->getLogger()->error("'login-timeout'/'min-password-length'/'session-login-available-minutes' in ".$this->getPluginDir()."config.yml must be numeric!");
@@ -271,6 +280,11 @@ class AuthMePE extends PluginBase implements Listener{
 	
 	public function onJoin(PlayerJoinEvent $event){
 		$t = $this->data->getAll();
+		if($this->specter !== false){
+			if($event->getPlayer() instanceof SpecterPlayer){
+				$this->login[$event->getPlayer()->getName()] = $event->getPlayer()->getName();
+			}
+		}
 		if($this->isRegistered($event->getPlayer())){
 			if($this->isSessionAvailable($event->getPlayer()) && $event->getPlayer()->getAddress() == $this->ip->get($event->getPlayer()->getName())){
 				 $this->auth($event->getPlayer(), 3);
