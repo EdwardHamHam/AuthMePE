@@ -63,7 +63,7 @@ class AuthMePE extends PluginBase implements Listener{
 			mkdir($this->getPluginDir()."data");
 		}
 		$this->data = new Config($this->getPluginDir()."data/data.yml", Config::YAML, array());
-		$this->ip = new Config($this->getPluginDir()."data/ip.yml", Config::YAML, array());
+		$this->ip = new Config($this->getPluginDir()."data/ip.yml", Config::YAML);
 		$this->specter = false; //Force false
 		$sp = $this->getServer()->getPluginManager()->getPlugin("Specter");
 		if($sp !== null){
@@ -85,6 +85,9 @@ class AuthMePE extends PluginBase implements Listener{
 	
 	public function reloadConfigFile(){
 		 $c = $this->cfg->getAll();
+		 if(!isset($c["force-spawn"])){
+		 $c["force-spawn"] = false;
+		 }
 	  if(!isset($c["login-timeout"])){
 	  	$c["login-timeout"] = 30;
 	  }
@@ -144,7 +147,7 @@ class AuthMePE extends PluginBase implements Listener{
 		
 		if($event->getMethod() == 0){
 			//Do these things for what?
-			//Sound cant be played when chat box+keyboard are using
+			//Bacause sound can't be played when keyboard is opened
 			$player->setHealth($player->getHealth() - 0.1);
 			$player->setHealth($player->getHealth() + 1);
 			$this->getServer()->getScheduler()->scheduleDelayedTask(new SoundTask($this, $player, 1), 7);
@@ -222,7 +225,18 @@ class AuthMePE extends PluginBase implements Listener{
 		$t = $this->data->getAll();
 		if(!$this->isLoggedIn($event->getPlayer())){
 			if($this->isRegistered($event->getPlayer())){
-				$this->login($event->getPlayer(), $event->getMessage());
+				$m = $event->getMessage();
+				if($m{0} == "/"){
+					//XD Easy, I don't want to think lol
+					if($m{1} == "l" && $m{2} == "o" && $m{3} == "g" && $m{4} == "i" && $m{5} == "n"){
+						//Dispatch Login Command
+					}else{
+						$event->getPlayer()->sendMessage("§fPlease login by using '/login' command or type your password into chat!");
+						return true;
+					}
+				}else{
+			  	$this->login($event->getPlayer(), $event->getMessage());
+			  }
 				$event->setCancelled(true);
 			}else{
 				if(!isset($t[$event->getPlayer()->getName()]["password"])){
@@ -280,6 +294,10 @@ class AuthMePE extends PluginBase implements Listener{
 	
 	public function onJoin(PlayerJoinEvent $event){
 		$t = $this->data->getAll();
+		$c = $this->configFile()->getAll();
+		if($c["force-spawn"] === true){
+			$event->getPlayer()->teleportImmediate($this->getServer()->getDefaultLevel()->getSafeSpawn());
+		}
 		if($this->specter !== false){
 			if($event->getPlayer() instanceof SpecterPlayer){
 				$this->login[$event->getPlayer()->getName()] = $event->getPlayer()->getName();
@@ -356,6 +374,29 @@ class AuthMePE extends PluginBase implements Listener{
 			  if($issuer->hasPermission("authmepe.command.authme")){
 			  	if(isset($args[0])){
 			  		switch(strtolower($args[0])){
+			  			case "login":
+			  			case "l":
+			  			  if(isset($args[1])){
+			  			  	 $target = $this->getServer()->getPlayer($args[1]);
+			  			  	 if($target !== null){
+			  			  	 	 if($this->isLoggedIn($target) !== true){
+			  			  	 	   $this->auth($target, 4);
+			  			  	 	   $target->sendMessage("§4You have been logged in by admin!\n§aYou are now logged in.");
+			  			  	 	   $issuer->sendMessage("§aTarget is now logged in.");
+			  			  	 	   return true;
+			  			  	 	 }else{
+			  			  	 	 	 $issuer->sendMessage("§b".$target->getName()." is already logged in!");
+			  			  	 	 	 return true;
+			  			  	 	 }
+			  			  	 }else{
+			  			  	 	 $issuer->sendMessage("§cInvalid target!");
+			  			  	 	 return true;
+			  			  	 }
+			  			  }else{
+			  			  	$issuer->sendMessage("Usage: /authme login <player>");
+			  			  	return true;
+			  			  }
+			  			break;
 			  			case "changepass":
 			  			case "changepassword":
 			  			  if(isset($args[1]) && isset($args[2])){
@@ -477,17 +518,20 @@ class AuthMePE extends PluginBase implements Listener{
 			  if($issuer->hasPermission("authmepe.command.email")){
 			  	if($issuer instanceof Player){
 			  		if(isset($args[0])){
-			  		  	$this->getServer()->getPluginManager()->callEvent($event = new PlayerChangePasswordEvent($this, $issuer, $args[0]));
-		           if($event->isCancelled()){
-		       	     $issuer->sendMessage("§cError during adding email!");
-			            return false;
-		           }
-			  				 $t = $this->data->getAll();
+			  		  $this->getServer()->getPluginManager()->callEvent($event = new PlayerAddEmailEvent($this, $issuer, $args[0]));
+			  		  if($event->isCancelled() !== true){
+			  		  	if(strpos($args[0], "@") !== false){
+			  		  		$t = $this->data->getAll();
 			  		     $t[$issuer->getName()]["email"] = $args[0];
 			  		     $this->data->setAll($t);
 			  		     $this->data->save();
 			  		     $issuer->sendMessage("§aEmail added successfully!\n§dAddress: §b".$args[0]);
 			  		     return true;
+			  		  	}else{
+			  		  		$issuer->sendMessage("§cInvalid email!");
+			  		  		return true;
+			  		  	}
+			  		  }
 			  		}else{
 			  			return false;
 			  		}
@@ -498,6 +542,24 @@ class AuthMePE extends PluginBase implements Listener{
 			  }else{
 			  	 $issuer->sendMessage("You have no permission for this!");
 			  	 return true;
+			  }
+			break;
+			case "login":
+			  if($issuer->hasPermission("authmepe.command.login")){
+			  	if($issuer instanceof Player){
+			  		if(isset($args[0])){
+			  			$this->login($issuer, $args[0]);
+			  			return true;
+			  		}else{
+			  			return false;
+			  		}
+			  	}else{
+			  		$issuer->sendMessage("Command only works in-game!");
+			  		return true;
+			  	}
+			  }else{
+			  	$issuer->sendMessage("§cYou don't have permission for this!");
+			  	return true;
 			  }
 			break;
 			case "logout":
@@ -645,6 +707,7 @@ class PlayerAuthEvent extends BaseEvent implements Cancellable{
 	const IP = 1;
 	const PERMISSION = 2;
 	const SESSION = 3;
+	const COMMAND = 4;
 	
 	public function __construct(AuthMePE $plugin, Player $player, $method){
 		$this->player = $player;
