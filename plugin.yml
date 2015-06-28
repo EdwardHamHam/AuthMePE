@@ -1,7 +1,7 @@
 name: AuthMePE
 main: AuthMePE\AuthMePE
 api: 1.12.0
-version: 0.1
+version: 0.1.2
 author: hoyinm & CyberCube-HK™
 description: Port of most features of Bukkit's AuthMe_Reloaded
 
@@ -16,16 +16,17 @@ commands:
     description: change your password
     permission: authmepe.command.changepass
     aliases: ["changepassword", "changepw"]
-  email:
-    usage: /email <mail>
+  chgemail:
+    usage: /chgemail <mail>
     description: Add your email
-    permission: authmepe.command.email
+    permission: authmepe.command.chgemail
+    aliases: ["setemail", "email"]
   logout:
     usage: /logout
     description: Logs out from your account
     permission: authmepe.command.logout
   authme:
-    usage: /authme changepass|unregister <args...>
+    usage: /authme help
     description: Admin command
     permission: authmepe.command.authme
     aliases: ["authmepe"]
@@ -35,7 +36,7 @@ permissions:
     default: true
   authmepe.command.changepass:
     default: true
-  authmepe.command.email:
+  authmepe.command.chgemail:
     default: true
   authmepe.command.logout:
     default: true
