@@ -57,7 +57,7 @@ class AuthMePE extends PluginBase implements Listener{
 	public function onEnable(){
 		$sa = $this->getServer()->getPluginManager()->getPlugin("SimpleAuth");
 		if($sa !== null){
-			$this->getLogger()->notice("AuthMePE has been disabled due to detection of conflict plugin!");
+			$this->getLogger()->notice("SimpleAuth has been disabled as it's a conflict plugin");
 			$this->getServer()->getPluginManager()->disablePlugin($this);
 		}
 		if(!is_dir($this->getPluginDir())){
@@ -79,6 +79,10 @@ class AuthMePE extends PluginBase implements Listener{
 		}
 		$this->getServer()->getScheduler()->scheduleRepeatingTask(new Task($this), 20 * 3);
 		$this->getServer()->getPluginManager()->registerEvents($this, $this);
+		if($this->getServer()->getPluginManager()->isPluginEnabled($this) !== true){
+		  $this->getLogger()->notice("Server will be shutdown due to security reason as AuthMePE is disabled!");
+		  $this->getServer()->shutdown();
+		}
 		$this->getLogger()->info(TextFormat::GREEN."Loaded Successfully!");
 	}
 	
