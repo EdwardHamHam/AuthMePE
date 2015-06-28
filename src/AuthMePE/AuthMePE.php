@@ -52,7 +52,14 @@ class AuthMePE extends PluginBase implements Listener{
 	
 	private $specter = false;
 	
+	const VERSION = "0.1.1";
+	
 	public function onEnable(){
+		$sa = $this->getServer()->getPluginManager()->getPlugin("SimpleAuth");
+		if($sa !== null){
+			$this->getLogger()->notice("AuthMePE has been disabled due to detection of conflict plugin!");
+			$this->getServer()->getPluginManager()->disablePlugin($this);
+		}
 		if(!is_dir($this->getPluginDir())){
 			@mkdir($this->getServer()->getDataPath()."plugins/hoyinm14mc_plugins");
 			mkdir($this->getPluginDir());
@@ -123,6 +130,10 @@ class AuthMePE extends PluginBase implements Listener{
 		return hash('sha256', $word);
 	}
 	
+	private function sendCommandUsage(Player $player, $usage){
+	  $player->sendMessage("§r§fUsage: §6".$usage);
+	}
+	
 	public function isLoggedIn(Player $player){
 		return in_array($player->getName(), $this->login);
 	}
@@ -137,10 +148,13 @@ class AuthMePE extends PluginBase implements Listener{
 		if($event->isCancelled()){
 			return false;
 		}
+		
+		$this->getLogger()->info("Player ".$player->getName()." has logged in.");
+		
 		$c = $this->configFile()->getAll();
 		$t = $this->data->getAll();
 		if($c["email"]["remind-players-add-email"] !== false && !isset($t[$player->getName()]["email"])){
-			$player->sendMessage("§dYou have not added your email!\nAdd it by using command §6/email <email>");
+			$player->sendMessage("§dYou have not added your email!\nAdd it by using command §6/chgemail <email>");
 		}
 		
 		$this->login[$player->getName()] = $player->getName();
@@ -183,6 +197,8 @@ class AuthMePE extends PluginBase implements Listener{
 		 $player->setHealth($player->getHealth() - 1);
 		 $player->setHealth($player->getHealth() + 1);
 		 $this->getServer()->getScheduler()->scheduleDelayedTask(new SoundTask($this, $player, 2), 7);
+		 
+		 $this->getLogger()->info("Player ".$player->getName()." has logged out.");
 		
 		unset($this->login[$player->getName()]);
 	}
@@ -221,19 +237,20 @@ class AuthMePE extends PluginBase implements Listener{
 		$player->sendPopup("§7Auth Session Expired!");
 	}
 	
+	public function getPlayerEmail($name){
+		$t = $this->data->getAll();
+	  return $t[$name]["email"];
+	}
+	
 	public function onPlayerCommand(PlayerCommandPreprocessEvent $event){
 		$t = $this->data->getAll();
 		if(!$this->isLoggedIn($event->getPlayer())){
 			if($this->isRegistered($event->getPlayer())){
 				$m = $event->getMessage();
 				if($m{0} == "/"){
-					//XD Easy, I don't want to think lol
-					if($m{1} == "l" && $m{2} == "o" && $m{3} == "g" && $m{4} == "i" && $m{5} == "n"){
-						//Dispatch Login Command
-					}else{
-						$event->getPlayer()->sendMessage("§fPlease login by using '/login' command or type your password into chat!");
-						return true;
-					}
+					$event->getPlayer()->sendTip("§cYou are not allowed to execute commands now!");
+					$event->getPlayer()->sendMessage("§fPlease login by typing your password into chat!");
+					$event->setCancelled(true);
 				}else{
 			  	$this->login($event->getPlayer(), $event->getMessage());
 			  }
@@ -373,7 +390,25 @@ class AuthMePE extends PluginBase implements Listener{
 			case "authme":
 			  if($issuer->hasPermission("authmepe.command.authme")){
 			  	if(isset($args[0])){
-			  		switch(strtolower($args[0])){
+			  		switch($args[0]){
+			  			case "version":
+			  			  $issuer->sendMessage("You're using AuthMePE ported from AuthMe_Reloaded for Bukkit");
+			  			  $issuer->sendMessage("Author: CyberCube-HK Team & hoyinm");
+			  			  $issuer->sendMessage("Version: ".$this::VERSION);
+			  			  return true;
+			  			break;
+			  			case "reload":
+			  			  $this->getServer()->broadcastMessage("§bAuthMePE§d> §eReload starts!");
+			  			  $this->getServer()->broadcastMessage("§7Reloading configuration..");
+			  			  $this->configFile()->reload();
+			  			  $this->getServer()->broadcastMessage("§7Reloading data files..");
+			  			  $this->data->reload();
+			  			  $this->ip->reload();
+			  			  $this->getServer()->broadcastMessage("§7Checking configuration..");
+			  			  $this->reloadConfigFile();
+			  			  $this->getServer()->broadcastMessage("§bAuthMePE§d> §aReload Complete!");
+			  			  return true;
+			  			break;
 			  			case "login":
 			  			case "l":
 			  			  if(isset($args[1])){
@@ -393,7 +428,7 @@ class AuthMePE extends PluginBase implements Listener{
 			  			  	 	 return true;
 			  			  	 }
 			  			  }else{
-			  			  	$issuer->sendMessage("Usage: /authme login <player>");
+			  			  	$this->sendCommandUsage($issuer, "/authme login <player>");
 			  			  	return true;
 			  			  }
 			  			break;
@@ -417,7 +452,7 @@ class AuthMePE extends PluginBase implements Listener{
 			  			  		return true;
 			  			  	}
 			  			  }else{
-			  			  	$issuer->sendMessage("Usage: /authme changepass <player> <password>");
+			  			    $this->sendCommandUsage($issuer, "/authme changepass <player> <password>");
 			  			  	return true;
 			  			  }
 			  			break;
@@ -440,13 +475,84 @@ class AuthMePE extends PluginBase implements Listener{
 			  			  		return true;
 			  			  	}
 			  			  }else{
-			  			  	$issuer->sendMessage("Usage: /authme unregister <player>");
+			  			    $this->sendCommandUsage($issuer, "/authme unregister <player>");
 			  			  	return true;
+			  			  }
+			  			break;
+			  			case "setemail":
+			  			case "chgemail":
+			  			case "email":
+			  			  if(isset($args[2])){
+			  			  	 if(strpos($args[1], "@") !== false){
+			  			  	 	 $target = $args[2];
+			  			  	 	 $t = $this->data->getAll();
+			  			  	 	 if(isset($t[$target])){
+			  			  	 	   $t[$target]["email"] = $args[1];
+			  			  	 	   $this->data->setAll($t);
+			  			  	 	   $this->data->save();
+			  			  	 	   $issuer->sendMessage("§aYou changed §6".$target."§a's email address!\n§aNew address: §6".$args[1]);
+			  			  	 	   return true;
+			  			  	 	 }else{
+			  			  	 	 	  $issuer->sendMessage("§cNo record of player §2$target");
+			  			  	 	 	  return true;
+			  			  	 	 }
+			  			  	 }else{
+			  			  	 	  $issuer->sendMessage("§cPlease enter a valid email address!");
+			  			  	 	  return true;
+			  			  	 }
+			  			  }else{
+			  			    $this->sendCommandUsage($issuer, "/authme chgemail <email> <player>");
+			  			  	return true;
+			  			  }
+			  			break;
+			  			case "getemail":
+			  			  if(isset($args[1])){
+			  			  	$target = $args[1];
+			  			  	$t = $this->data->getAll();
+			  			  	if(isset($t[$target])){
+			  			  		if(isset($t[$target]["email"])){
+			  			  			$email = $this->getPlayerEmail($target);
+			  			  			$issuer->sendMessage("Player §a".$target."§r§f's email address:\n§b".$email);
+			  			  			return true;
+			  			  		}else{
+			  			  		   $issuer->sendMessage("§cCould not find §b".$target."§c's email address!");
+			  			  		   return true;
+			  			  		}
+			  			  	}else{
+			  			  	   $issuer->sendMessage("§cNo record of player §2$target");
+			  			  	   return true;
+			  			  	}
+			  			  }else{
+			  			    $this->sendCommandUsage($issuer, "/authme getemail <player>");
+			  			     return true;
+			  			  }
+			  			break;
+			  			case "help":
+			  			case "h":
+			  			  if(isset($args[1])){
+			  			  	 switch($args[1]){
+			  			  	 	  case 1:
+			  			  	 	    $issuer->sendMessage("§e-------§bAuthMePE §1- §cAdmin Cmd§e-------");
+			  			  	 	    $this->sendCommandUsage($issuer, "/authme reload");
+			  			  	 	    $this->sendCommandUsage($issuer, "/authme login <player>");
+			  			  	 	    $this->sendCommandUsage($issuer, "/authme changepass <player> <password>");
+			  			  	 	    $this->sendCommandUsage($issuer, "/authme unregister <player>");
+			  			  	 	    $this->sendCommandUsage($issuer, "/authme version");
+			  			  	 	    $this->sendCommandUsage($issuer, "/authme chgemail <email> <player>");
+			  			  	 	    $this->sendCommandUsage($issuer, "/authme getemail <player>");
+			  			  	 	    $issuer->sendMessage("§e----------------------------------");
+			  			  	 	    return true;
+			  			  	 	  break;
+			  			  	 }
+			  			  }else{
+			  			    $this->getServer()->dispatchCommand($issuer, "authme help 1");
+			  			     return true;
 			  			  }
 			  			break;
 			  		}
 			  	}else{
-			  		return false;
+			  		$this->sendCommandUsage($issuer, "/authme help");
+			  		return true;
 			  	}
 			  }else{
 			  	$issuer->sendMessage("§cYou don't have permission for this!");
@@ -503,7 +609,8 @@ class AuthMePE extends PluginBase implements Listener{
 			  				return true;
 			  			}
 			  		}else{
-			  			return false;
+			  			$this->sendCommandUsage($issuer, "/changepass <old> <new> <new>");
+			  			return true;
 			  		}
 			  	}else{
 			  		$issuer->sendMessage("Please run this command in-game!");
@@ -514,8 +621,8 @@ class AuthMePE extends PluginBase implements Listener{
 			  	 return true;
 			  }
 			break;
-			case "email":
-			  if($issuer->hasPermission("authmepe.command.email")){
+			case "chgemail":
+			  if($issuer->hasPermission("authmepe.command.chgemail")){
 			  	if($issuer instanceof Player){
 			  		if(isset($args[0])){
 			  		  $this->getServer()->getPluginManager()->callEvent($event = new PlayerAddEmailEvent($this, $issuer, $args[0]));
@@ -525,7 +632,7 @@ class AuthMePE extends PluginBase implements Listener{
 			  		     $t[$issuer->getName()]["email"] = $args[0];
 			  		     $this->data->setAll($t);
 			  		     $this->data->save();
-			  		     $issuer->sendMessage("§aEmail added successfully!\n§dAddress: §b".$args[0]);
+			  		     $issuer->sendMessage("§aEmail changed successfully!\n§dAddress: §b".$args[0]);
 			  		     return true;
 			  		  	}else{
 			  		  		$issuer->sendMessage("§cInvalid email!");
@@ -533,7 +640,8 @@ class AuthMePE extends PluginBase implements Listener{
 			  		  	}
 			  		  }
 			  		}else{
-			  			return false;
+			  			$this->sendCommandUsage($issuer, "/chgemail <email>");
+			  			return true;
 			  		}
 			  	}else{
 			  		$issuer->sendMessage("Please run this command in-game!");
@@ -542,24 +650,6 @@ class AuthMePE extends PluginBase implements Listener{
 			  }else{
 			  	 $issuer->sendMessage("You have no permission for this!");
 			  	 return true;
-			  }
-			break;
-			case "login":
-			  if($issuer->hasPermission("authmepe.command.login")){
-			  	if($issuer instanceof Player){
-			  		if(isset($args[0])){
-			  			$this->login($issuer, $args[0]);
-			  			return true;
-			  		}else{
-			  			return false;
-			  		}
-			  	}else{
-			  		$issuer->sendMessage("Command only works in-game!");
-			  		return true;
-			  	}
-			  }else{
-			  	$issuer->sendMessage("§cYou don't have permission for this!");
-			  	return true;
 			  }
 			break;
 			case "logout":
