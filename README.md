@@ -30,3 +30,5 @@ A port of Bukkit's AuthMe_Reloaded to PocketMine
 13. 'Specter' plugin supported
 
 14. IP address memory support
+
+15. Max numbers of login tries for players.
