@@ -31,6 +31,7 @@ use AuthMePE\Task;
 use AuthMePE\Task2;
 use AuthMePE\SessionTask;
 use AuthMePE\SoundTask;
+use AuthMePE\UnbanTask;
 
 use AuthMePE\BaseEvent;
 
@@ -72,10 +73,7 @@ class AuthMePE extends PluginBase implements Listener{
 		}
 		$this->data = new Config($this->getPluginDir()."data/data.yml", Config::YAML, array());
 		$this->ip = new Config($this->getPluginDir()."data/ip.yml", Config::YAML);
-		/*$this->bans = new Config($this->getPluginDir()."data/bans.yml", Config::YAML, array(
-		  "reason-ReachedMaxAmountOfPasswordTries" => array(
-		  "tom",
-		  "fuc")));*/
+		$this->bans = new Config($this->getPluginDir()."data/bans.yml", Config::ENUM, array());
 		$this->specter = false; //Force false
 		$sp = $this->getServer()->getPluginManager()->getPlugin("Specter");
 		if($sp !== null){
@@ -103,6 +101,9 @@ class AuthMePE extends PluginBase implements Listener{
 		 $c = $this->cfg->getAll();
 		 if(!isset($c["tries-allowed-to-enter-password"])){
 		   $c["tries-allowed-to-enter-password"] = 5;
+		 }
+		 if(!isset($c["time-unban-after-tries-ban-minutes"])){
+		   $c["time-unban-after-tries-ban-minutes"] = 5;
 		 }
 		 if(!isset($c["force-spawn"])){
 		 $c["force-spawn"] = false;
@@ -184,22 +185,25 @@ class AuthMePE extends PluginBase implements Listener{
 	
 	public function login(Player $player, $password){
 		$t = $this->data->getAll();
+		$c = $this->configFile()->getAll();
 		if(md5($password.$this->salt($password)) != $t[$player->getName()]["password"]){
 		  
 			$player->sendMessage(TextFormat::RED."Wrong password!");
 			$times = $t[$player->getName()]["times"];
-			$left = 5 - $times;
-			if($times < 5){
-			  $player->sendMessage("§eYou have ".$left." tries left!");
+			$left = $c["tries-allowed-to-enter-password"] - $times;
+			if($times < $c["tries-allowed-to-enter-password"]){
+			  $player->sendMessage("§eYou have §l§c".$left." §r§etries left!");
 			  $t[$player->getName()]["times"] = $times + 1;
 			  $this->data->setAll($t);
 			  $this->data->save();
 			}else{
 			  $player->kick("§4Max amount of tries reached!");
-			  $this->getServer()->dispatchCommand(new ConsoleCommandSender(), "ban ".$player->getName()." Max amount of password tries reached");
-			  unset($t[$player->getName()]);
+			  $t[$player->getName()]["times"] = 0;
 			  $this->data->setAll($t);
 			  $this->data->save();
+			  $this->ban($player->getName());
+			  $c = $this->configFile()->getAll();
+			  $this->getServer()->getScheduler()->scheduleDelayedTask(new UnbanTask($this, $player), $c["time-unban-after-tries-ban-minutes"] * 1200);
 			}
 			
 			return false;
@@ -264,6 +268,20 @@ class AuthMePE extends PluginBase implements Listener{
 		
 		unset($this->session[$player->getName()]);
 		$player->sendPopup("§7Auth Session Expired!");
+	}
+	
+	public function ban($name){
+	  $this->bans->set($name, true);
+	  $this->bans->save();
+	}
+	
+	public function unban($name){
+	  $this->bans->remove($name);
+	  $this->bans->save();
+	}
+	
+	public function isBanned($name){
+	  return $this->bans->remove($name);
 	}
 	
 	public function getPlayerEmail($name){
@@ -341,6 +359,9 @@ class AuthMePE extends PluginBase implements Listener{
 	public function onJoin(PlayerJoinEvent $event){
 		$t = $this->data->getAll();
 		$c = $this->configFile()->getAll();
+		if($this->isBanned($event->getPlayer()->getName()) !== false){
+		  $event->getPlayer()->kick("§4Due to security issue, \n§4this account has been blocked temporary.  \n§4Please try again later.\n\n\n\n§6-AuthMePE Authentication System");
+		}
 		if($c["force-spawn"] === true){
 			$event->getPlayer()->teleportImmediate($this->getServer()->getDefaultLevel()->getSafeSpawn());
 		}
@@ -1161,6 +1182,29 @@ class SoundTask extends PluginTask{
 			  $this->player->getLevel()->addSound(new LaunchSound($this->player), $this->player->getServer()->getOnlinePlayers());
 			break;
 		}
+	}
+}
+
+namespace AuthMePE;
+
+use pocketmine\scheduler\PluginTask;
+use pocketmine\Player;
+
+use AuthMePE\AuthMePE;
+
+class UnbanTask extends PluginTask{
+	public $plugin;
+	public $player;
+	
+	public function __construct(AuthMePE $plugin, $player){
+		$this->plugin = $plugin;
+		$this->player = $player;
+		parent::__construct($plugin);
+	}
+	
+	public function onRun($tick){
+		$this->plugin->unban($this->player->getName());
+		$this->plugin->getServer()->getScheduler()->cancelTask($this->getTaskId());
 	}
 }
 ?>
