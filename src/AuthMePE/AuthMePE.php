@@ -200,7 +200,7 @@ class AuthMePE extends PluginBase implements Listener{
 			  $this->data->setAll($t);
 			  $this->data->save();
 			}else{
-			  $player->kick("§4Max amount of tries reached!\n§eTry again ".$t["tries-allowed-to-enter-password"]." later.");
+			  $player->kick("\n§cMax amount of tries reached!\n§eTry again §d".$c["tries-allowed-to-enter-password"]." §eminutes later.");
 			  $t[$player->getName()]["times"] = 0;
 			  $this->data->setAll($t);
 			  $this->data->save();
@@ -361,7 +361,7 @@ class AuthMePE extends PluginBase implements Listener{
 		$t = $this->data->getAll();
 		$c = $this->configFile()->getAll();
 		if($this->isBanned($event->getPlayer()->getName()) !== false){
-		  $event->getPlayer()->kick("§4Due to security issue, \n§4this account has been blocked temporary.  \n§4Please try again later.\n\n\n\n§6-AuthMePE Authentication System");
+		  $event->getPlayer()->kick("§cDue to security issue, \n§cthis account has been blocked temporary.  \n§cPlease try again later.\n\n\n\n§6-AuthMePE Authentication System");
 		}
 		if($c["force-spawn"] === true){
 			$event->getPlayer()->teleportImmediate($this->getServer()->getDefaultLevel()->getSafeSpawn());
