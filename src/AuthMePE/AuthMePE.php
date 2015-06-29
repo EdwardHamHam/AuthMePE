@@ -100,10 +100,10 @@ class AuthMePE extends PluginBase implements Listener{
 	public function reloadConfigFile(){
 		 $c = $this->cfg->getAll();
 		 if(!isset($c["tries-allowed-to-enter-password"])){
-		   $c["tries-allowed-to-enter-password"] = 5;
+		   $c["tries-allowed-to-enter-password"] = 3;
 		 }
 		 if(!isset($c["time-unban-after-tries-ban-minutes"])){
-		   $c["time-unban-after-tries-ban-minutes"] = 5;
+		   $c["time-unban-after-tries-ban-minutes"] = 2;
 		 }
 		 if(!isset($c["force-spawn"])){
 		 $c["force-spawn"] = false;
@@ -132,6 +132,9 @@ class AuthMePE extends PluginBase implements Listener{
 	public function onDisable(){
 		foreach($this->getLoggedIn() as $p){
 			$this->logout($p);
+		}
+		foreach($this->bans as $banned_players){
+		  $this->unban($banned_players);
 		}
 	}
 	
@@ -197,7 +200,7 @@ class AuthMePE extends PluginBase implements Listener{
 			  $this->data->setAll($t);
 			  $this->data->save();
 			}else{
-			  $player->kick("§4Max amount of tries reached!");
+			  $player->kick("§4Max amount of tries reached!\n§eTry again ".$t["tries-allowed-to-enter-password"]." later.");
 			  $t[$player->getName()]["times"] = 0;
 			  $this->data->setAll($t);
 			  $this->data->save();
