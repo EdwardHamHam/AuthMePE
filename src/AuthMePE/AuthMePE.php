@@ -756,7 +756,7 @@ class AuthMePE extends PluginBase implements Listener{
 	
 	public function onInvOpen(InventoryOpenEvent $event){
 	  if($this->isLoggedIn($event->getPlayer()) !== true){
-	    $event->getPlayer()->closeWindow($event->getPlayer());
+	    $event->getPlayer()->removeWindow($event->getPlayer());
 	    $event->getPlayer()->sendTip("§cYou are not allowed to open your inventory now!");
 	  }
 	}
