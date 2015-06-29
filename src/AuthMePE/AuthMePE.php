@@ -51,6 +51,7 @@ class AuthMePE extends PluginBase implements Listener{
 	
 	private $login = array();
 	private $session = array();
+	private $bans = array();
 	
 	private $specter = false;
 	
@@ -73,7 +74,6 @@ class AuthMePE extends PluginBase implements Listener{
 		}
 		$this->data = new Config($this->getPluginDir()."data/data.yml", Config::YAML, array());
 		$this->ip = new Config($this->getPluginDir()."data/ip.yml", Config::YAML);
-		$this->bans = new Config($this->getPluginDir()."data/bans.yml", Config::ENUM, array());
 		$this->specter = false; //Force false
 		$sp = $this->getServer()->getPluginManager()->getPlugin("Specter");
 		if($sp !== null){
@@ -271,17 +271,15 @@ class AuthMePE extends PluginBase implements Listener{
 	}
 	
 	public function ban($name){
-	  $this->bans->set($name, true);
-	  $this->bans->save();
+	  $this->bans[$name] = $name;
 	}
 	
 	public function unban($name){
-	  $this->bans->remove($name);
-	  $this->bans->save();
+	  unset($this->bans[$name]);
 	}
 	
 	public function isBanned($name){
-	  return $this->bans->remove($name);
+	  return in_array($name, $this->bans);
 	}
 	
 	public function getPlayerEmail($name){
