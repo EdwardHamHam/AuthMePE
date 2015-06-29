@@ -14,6 +14,7 @@ use pocketmine\event\player\PlayerQuitEvent;
 use pocketmine\event\entity\EntityDamageEvent;
 use pocketmine\event\player\PlayerInteractEvent;
 use pocketmine\event\inventory\InventoryPickupItemEvent;
+use pocketmine\event\inventory\InventoryOpenEvent;
 use pocketmine\event\block\BlockBreakEvent;
 use pocketmine\event\block\BlockPlaceEvent;
 use pocketmine\scheduler\ServerScheduler;
@@ -753,10 +754,18 @@ class AuthMePE extends PluginBase implements Listener{
 		}
 	}
 	
+	public function onInvOpen(InventoryOpenEvent $event){
+	  if($this->isLoggedIn($event->getPlayer()) !== true){
+	    $event->getPlayer()->closeWindow($event->getPlayer());
+	    $event->getPlayer()->sendTip("§cYou are not allowed to open your inventory now!");
+	  }
+	}
+	
 	public function onBlockBreak(BlockBreakEvent $event){
 		 $t = $this->data->getAll();
 		if(!$this->isLoggedIn($event->getPlayer())){
 			if($this->isRegistered($event->getPlayer())){
+			  $event->getPlayer()->sendTip("§cYou are not allowed to break blocks now!");
 				$event->setCancelled(true);
 			}else if(isset($t[$event->getPlayer()->getName()]["password"]) && !isset($t[$event->getPlayer()->getName()]["confirm"])){
 				$event->getPlayer()->sendMessage("Type your password again to confirm!");
@@ -775,6 +784,7 @@ class AuthMePE extends PluginBase implements Listener{
 		 $t = $this->data->getAll();
 		if(!$this->isLoggedIn($event->getPlayer())){
 			if($this->isRegistered($event->getPlayer())){
+			  $event->getPlayer()->sendTip("§cYou are not allowed to place blocks now!");
 				$event->setCancelled(true);
 			}else if(isset($t[$event->getPlayer()->getName()]["password"]) && !isset($t[$event->getPlayer()->getName()]["confirm"])){
 				$event->getPlayer()->sendMessage("Type your password again to confirm!");
@@ -793,6 +803,7 @@ class AuthMePE extends PluginBase implements Listener{
 		 $t = $this->data->getAll();
 		if(!$this->isLoggedIn($event->getPlayer())){
 			if($this->isRegistered($event->getPlayer())){
+			  $event->getPlayer()->sendTip("§cYou are not allowed to interact now!");
 				$event->setCancelled(true);
 			}else if(isset($t[$event->getPlayer()->getName()]["password"]) && !isset($t[$event->getPlayer()->getName()]["confirm"])){
 				$event->getPlayer()->sendMessage("Type your password again to confirm!");
