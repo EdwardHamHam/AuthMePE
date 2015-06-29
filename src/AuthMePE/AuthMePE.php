@@ -18,6 +18,7 @@ use pocketmine\event\block\BlockBreakEvent;
 use pocketmine\event\block\BlockPlaceEvent;
 use pocketmine\scheduler\ServerScheduler;
 use pocketmine\command\CommandSender;
+use pocketmine\command\ConsoleCommandSender;
 use pocketmine\command\Command;
 use pocketmine\level\Level;
 use pocketmine\level\sound\BatSound;
@@ -71,6 +72,10 @@ class AuthMePE extends PluginBase implements Listener{
 		}
 		$this->data = new Config($this->getPluginDir()."data/data.yml", Config::YAML, array());
 		$this->ip = new Config($this->getPluginDir()."data/ip.yml", Config::YAML);
+		/*$this->bans = new Config($this->getPluginDir()."data/bans.yml", Config::YAML, array(
+		  "reason-ReachedMaxAmountOfPasswordTries" => array(
+		  "tom",
+		  "fuc")));*/
 		$this->specter = false; //Force false
 		$sp = $this->getServer()->getPluginManager()->getPlugin("Specter");
 		if($sp !== null){
@@ -96,6 +101,9 @@ class AuthMePE extends PluginBase implements Listener{
 	
 	public function reloadConfigFile(){
 		 $c = $this->cfg->getAll();
+		 if(!isset($c["tries-allowed-to-enter-password"])){
+		   $c["tries-allowed-to-enter-password"] = 5;
+		 }
 		 if(!isset($c["force-spawn"])){
 		 $c["force-spawn"] = false;
 		 }
@@ -177,7 +185,23 @@ class AuthMePE extends PluginBase implements Listener{
 	public function login(Player $player, $password){
 		$t = $this->data->getAll();
 		if(md5($password.$this->salt($password)) != $t[$player->getName()]["password"]){
+		  
 			$player->sendMessage(TextFormat::RED."Wrong password!");
+			$times = $t[$player->getName()]["times"];
+			$left = 5 - $times;
+			if($times < 5){
+			  $player->sendMessage("§eYou have ".$left." tries left!");
+			  $t[$player->getName()]["times"] = $times + 1;
+			  $this->data->setAll($t);
+			  $this->data->save();
+			}else{
+			  $player->kick("§4Max amount of tries reached!");
+			  $this->getServer()->dispatchCommand(new ConsoleCommandSender(), "ban ".$player->getName()." Max amount of password tries reached");
+			  unset($t[$player->getName()]);
+			  $this->data->setAll($t);
+			  $this->data->save();
+			}
+			
 			return false;
 		}
 		
@@ -215,6 +239,7 @@ class AuthMePE extends PluginBase implements Listener{
 		}
 		$t = $this->data->getAll();
 		$t[$player->getName()]["password"] = md5($pw1.$this->salt($pw1));
+		$t[$player->getName()]["times"] = 0;
 		$this->data->setAll($t);
 		$this->data->save();
 	}
@@ -408,6 +433,7 @@ class AuthMePE extends PluginBase implements Listener{
 			  			  $this->getServer()->broadcastMessage("§7Reloading data files..");
 			  			  $this->data->reload();
 			  			  $this->ip->reload();
+			  			  //$this->bans->reload();
 			  			  $this->getServer()->broadcastMessage("§7Checking configuration..");
 			  			  $this->reloadConfigFile();
 			  			  $this->getServer()->broadcastMessage("§bAuthMePE§d> §aReload Complete!");
@@ -460,6 +486,26 @@ class AuthMePE extends PluginBase implements Listener{
 			  			  	return true;
 			  			  }
 			  			break;
+			  			case "register":
+			  			  if(isset($args[2])){
+			  			    $target = $args[1];
+			  			    $password = $args[2];
+			  			    $t = $this->data->getAll();
+			  			    if(!isset($t[$target])){
+			  			      $t[$target]["password"] = $args[2];
+			  			      $t[$target]["ip"] = "no";
+			  			      $t[$target]["times"] = 0;
+			  			      $issuer->sendMessage("§aYou helped §b".$target." §ato register!");
+			  			      return true;
+			  			    }else{
+			  			      $issuer->sendMessage("§cUser alreasy exists!");
+			  			      return true;
+			  			    }
+			  			  }else{
+			  			    $this->sendCommandUsage($issuer, "/authme register <player> <password>");
+			  			    return true;
+			  			  }
+			  			break;
 			  			case "unregister":
 			  			  if(isset($args[1])){
 			  			  	$target = $args[1];
@@ -469,11 +515,11 @@ class AuthMePE extends PluginBase implements Listener{
 			  			  		$this->data->setAll($t);
 			  			  		$this->data->save();
 			  			  		$issuer->sendMessage("§dYou removed §c".$target."§d's account!");
-			  			  		if($this->getServer()->getPlayer($target)->isOnline() && $this->isLoggedIn($this->getServer()->getPlayer($target))){
+			  			  		if($this->getServer()->getPlayer($target) !== null && $this->isLoggedIn($this->getServer()->getPlayer($target))){
 			  			  			$this->logout($this->getServer()->getPlayer($target));
 			  			  			$this->getServer()->getPlayer($target)->kick("\n§4You have been unregistered by admin.\n§aRe-join server to register!");
+			  			  			return true;
 			  			  		}
-			  			  		return true;
 			  			  	}else{
 			  			  		$issuer->sendMessage("§cPlayer §b".$target." §cis not registered!");
 			  			  		return true;
@@ -540,6 +586,7 @@ class AuthMePE extends PluginBase implements Listener{
 			  			  	 	    $this->sendCommandUsage($issuer, "/authme reload");
 			  			  	 	    $this->sendCommandUsage($issuer, "/authme login <player>");
 			  			  	 	    $this->sendCommandUsage($issuer, "/authme changepass <player> <password>");
+			  			  	 	    $this->sendCommandUsage($issuer, "/authme register <player> <password>");
 			  			  	 	    $this->sendCommandUsage($issuer, "/authme unregister <player>");
 			  			  	 	    $this->sendCommandUsage($issuer, "/authme version");
 			  			  	 	    $this->sendCommandUsage($issuer, "/authme chgemail <email> <player>");
