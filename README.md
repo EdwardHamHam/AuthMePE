@@ -32,3 +32,7 @@ A port of Bukkit's AuthMe_Reloaded to PocketMine
 14. IP address memory support
 
 15. Max numbers of login tries for players.
+
+
+[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/CyberCube-hk/authmepe/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
+
