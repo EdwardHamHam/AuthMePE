@@ -428,7 +428,9 @@ class AuthMePE extends PluginBase implements Listener{
 			if($c["sessions"]["enabled"] !== false){
 				$this->startSession($event->getPlayer(), $c["sessions"]["session-login-available-minutes"]);
 			}
-		}
+		}else{
+                        $this->ip->set($event->getPlayer()->getName(), "removed due security issue");
+                }
 		if(!$this->isRegistered($event->getPlayer()) && isset($t[$event->getPlayer()->getName()])){
 			unset($t[$event->getPlayer()->getName()]);
 			$this->data->setAll($t);
