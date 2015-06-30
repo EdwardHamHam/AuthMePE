@@ -56,7 +56,7 @@ class AuthMePE extends PluginBase implements Listener{
 	
 	private $specter = false;
 	
-	const VERSION = "0.1.1";
+	const VERSION = "0.1.3";
 	
 	public function onEnable(){
 		$sa = $this->getServer()->getPluginManager()->getPlugin("SimpleAuth");
