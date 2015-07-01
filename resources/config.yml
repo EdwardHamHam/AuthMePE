@@ -1,0 +1,39 @@
+### AuthMePE Configuration File ###
+
+# Sessions
+sessions:
+  # Enable session
+  enabled: true
+  # Session time (minutes)
+  # After player logout, player can login if session isn't expired
+  session-login-available-minutes: 5
+  
+# Email
+email:
+  # Remind players to add email when they login,
+  # if they have not added their email by command
+  # You can get the player's email by '/authme getemail <player>'
+  remind-players-add-email: true
+ 
+# If players do not login when they join after seconds, they'll be kicked (SECONDS)
+login-timeout: 30
+
+# Minimum password length
+# Player's password should contains more than (words) words
+min-password-length: 6
+
+# Maximum password length
+# Player's password should not contain more than (words) words
+max-password-length: 12
+
+# Force spawn(default world spawn) when player joins?
+force-spawn: true
+
+# Password tries
+# How many times can player try to have wrong password entered?
+tries-allowed-to-enter-password: 3
+# If they reached the number of wrong password tried, how long should they be banned? (MINUTES)
+time-unban-after-tries-ban-minutes: 2
+
+# Vanish players who aren't logged in?
+vanish-nonloggedin-players: true
