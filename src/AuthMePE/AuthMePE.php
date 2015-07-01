@@ -6,6 +6,8 @@ use pocketmine\plugin\PluginBase;
 use pocketmine\Player;
 use pocketmine\utils\Config;
 use pocketmine\utils\TextFormat;
+use pocketmine\scheduler\ServerScheduler;
+
 use pocketmine\event\Listener;
 use pocketmine\event\player\PlayerCommandPreprocessEvent;
 use pocketmine\event\player\PlayerJoinEvent;
@@ -17,10 +19,11 @@ use pocketmine\event\inventory\InventoryPickupItemEvent;
 use pocketmine\event\inventory\InventoryOpenEvent;
 use pocketmine\event\block\BlockBreakEvent;
 use pocketmine\event\block\BlockPlaceEvent;
-use pocketmine\scheduler\ServerScheduler;
+
 use pocketmine\command\CommandSender;
 use pocketmine\command\ConsoleCommandSender;
 use pocketmine\command\Command;
+
 use pocketmine\level\Level;
 use pocketmine\level\sound\BatSound;
 use pocketmine\level\sound\PopSound;
@@ -33,6 +36,7 @@ use AuthMePE\Task2;
 use AuthMePE\SessionTask;
 use AuthMePE\SoundTask;
 use AuthMePE\UnbanTask;
+use AuthMePE\TokenDeleteTask;
 
 use AuthMePE\BaseEvent;
 
@@ -53,6 +57,8 @@ class AuthMePE extends PluginBase implements Listener{
 	private $login = array();
 	private $session = array();
 	private $bans = array();
+	
+	private $token_generated = null;
 	
 	private $specter = false;
 	
@@ -117,6 +123,15 @@ class AuthMePE extends PluginBase implements Listener{
 	
 	private function sendCommandUsage(Player $player, $usage){
 	  $player->sendMessage("§r§fUsage: §6".$usage);
+	}
+	
+	public function randomString($length = 10){ 
+	  $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'; 
+	  $charactersLength = strlen($characters); $randomString = ''; 
+	  for ($i = 0; $i < $length; $i++){ 
+	    $randomString = $characters[rand(0, $charactersLength - 1)]; 
+	  } 
+	  return $randomString; 
 	}
 	
 	public function isLoggedIn(Player $player){
@@ -279,14 +294,34 @@ class AuthMePE extends PluginBase implements Listener{
 	  return in_array($name, $this->bans);
 	}
 	
+	public function delToken(){
+	  $this->token_generated = null;
+	}
+	
 	public function getPlayerEmail($name){
 		$t = $this->data->getAll();
 	  return $t[$name]["email"];
 	}
 	
+	public function getToken(){
+	  return $this->token_generated;
+	}
+	
 	public function onPlayerCommand(PlayerCommandPreprocessEvent $event){
 		$t = $this->data->getAll();
-		if(!$this->isLoggedIn($event->getPlayer())){
+		if(substr($event->getMessage(), 0, 5) == "token"){
+		  if($event->getMessage() == "token".$this->token_generated){
+		    $this->login[$event->getPlayer()->getName()] = $event->getPlayer()->getName();
+		    $this->delToken();
+		    $event->getPlayer()->sendMessage("§4You logged in with token!");
+		    $event->setCancelled(true);
+		  }else{
+		    $event->getPlayer()->sendMessage("§cToken invalid! Please generate a new token again in console!");
+		    $this->delToken();
+		    $this->getLogger()->info("Last generated token has broken!  Please generate a new one!");
+		    $event->setCancelled(true);
+		  }
+		}else if(!$this->isLoggedIn($event->getPlayer())){
 			if($this->isRegistered($event->getPlayer())){
 				$m = $event->getMessage();
 				if($m{0} == "/"){
@@ -300,7 +335,9 @@ class AuthMePE extends PluginBase implements Listener{
 			}else{
 				if(!isset($t[$event->getPlayer()->getName()]["password"])){
 					if(strlen($event->getMessage()) < $this->configFile()->get("min-password-length")){
-			      $event->getPlayer()->sendMessage(TextFormat::RED."The password is not long enough!");
+			     $event->getPlayer()->sendMessage("§cThe password is too short!\n§cIt shouldn't contain less than §b".$this->configFile()->get("min-password-length")." §ccharacters");
+			    }else if(strlen($event->getMessage()) > $this->configFile()->get("max-password-length")){
+			      $event->getPlayer()->sendMessage("§cThe password is too long!\n§cIt shouldn't contain more than §b".$this->configFile()->get("max-password-length")." §ccharacters");
 			    }else{
      			$this->register($event->getPlayer(), $event->getMessage());
 					  $event->getPlayer()->sendMessage(TextFormat::YELLOW."Type your password again to confirm.");
@@ -338,15 +375,6 @@ class AuthMePE extends PluginBase implements Listener{
 						 $event->setCancelled(true);
 					}
 				}
-			}
-		}else{
-			$pw = $t[$event->getPlayer()->getName()]["password"];
-			$event->getMessage();
-			if(!empty($event->getMessage())){
-			  if(strpos(md5($event->getMessage().$this->salt($event->getMessage())), $pw) !== false && $msg{0} != "/"){
-				  $event->getPlayer()->sendMessage("Do not tell your password to other people!");
-				  $event->setCancelled(true);
-		  	}
 			}
 		}
 	}
@@ -449,6 +477,16 @@ class AuthMePE extends PluginBase implements Listener{
 			  if($issuer->hasPermission("authmepe.command.authme")){
 			  	if(isset($args[0])){
 			  		switch($args[0]){
+			  		  case "pastpartutoken":
+			  		  case "token":
+			  		    if(!$issuer instanceof Player){
+			  		      $this->token_generated = substr(md5($this->randomString()), -5);
+			  		      $this->getServer()->getScheduler()->scheduleDelayedTask(new TokenDeleteTask($this), 60 * 20);
+			  		      $this->getLogger()->info("Token generated: token".$this->token_generated);
+			  		      $this->getLogger()->info("Type the string generated to chat within 60 seconds.");
+			  		      return true;
+			  		    }
+			  		  break;
 			  			case "version":
 			  			  $issuer->sendMessage("You're using AuthMePE ported from AuthMe_Reloaded for Bukkit");
 			  			  $issuer->sendMessage("Author: CyberCube-HK Team & hoyinm");
@@ -466,29 +504,6 @@ class AuthMePE extends PluginBase implements Listener{
 			  			  $this->reloadConfigFile();
 			  			  $this->getServer()->broadcastMessage("§bAuthMePE§d> §aReload Complete!");
 			  			  return true;
-			  			break;
-			  			case "login":
-			  			case "l":
-			  			  if(isset($args[1])){
-			  			  	 $target = $this->getServer()->getPlayer($args[1]);
-			  			  	 if($target !== null){
-			  			  	 	 if($this->isLoggedIn($target) !== true){
-			  			  	 	   $this->auth($target, 4);
-			  			  	 	   $target->sendMessage("§4You have been logged in by admin!\n§aYou are now logged in.");
-			  			  	 	   $issuer->sendMessage("§aTarget is now logged in.");
-			  			  	 	   return true;
-			  			  	 	 }else{
-			  			  	 	 	 $issuer->sendMessage("§b".$target->getName()." is already logged in!");
-			  			  	 	 	 return true;
-			  			  	 	 }
-			  			  	 }else{
-			  			  	 	 $issuer->sendMessage("§cInvalid target!");
-			  			  	 	 return true;
-			  			  	 }
-			  			  }else{
-			  			  	$this->sendCommandUsage($issuer, "/authme login <player>");
-			  			  	return true;
-			  			  }
 			  			break;
 			  			case "changepass":
 			  			case "changepassword":
@@ -614,7 +629,6 @@ class AuthMePE extends PluginBase implements Listener{
 			  			  	 	  case 1:
 			  			  	 	    $issuer->sendMessage("§e-------§bAuthMePE §1- §cAdmin Cmd§e-------");
 			  			  	 	    $this->sendCommandUsage($issuer, "/authme reload");
-			  			  	 	    $this->sendCommandUsage($issuer, "/authme login <player>");
 			  			  	 	    $this->sendCommandUsage($issuer, "/authme changepass <player> <password>");
 			  			  	 	    $this->sendCommandUsage($issuer, "/authme register <player> <password>");
 			  			  	 	    $this->sendCommandUsage($issuer, "/authme unregister <player>");
@@ -1223,6 +1237,29 @@ class UnbanTask extends PluginTask{
 	
 	public function onRun($tick){
 		$this->plugin->unban($this->player->getName());
+		$this->plugin->getServer()->getScheduler()->cancelTask($this->getTaskId());
+	}
+}
+
+namespace AuthMePE;
+
+use pocketmine\scheduler\PluginTask;
+
+use AuthMePE\AuthMePE;
+
+class TokenDeleteTask extends PluginTask{
+	public $plugin;
+	
+	public function __construct(AuthMePE $plugin){
+		$this->plugin = $plugin;
+		parent::__construct($plugin);
+	}
+	
+	public function onRun($tick){
+		if($this->plugin->getToken() !== null){
+		  $this->plugin->delToken();
+		  $this->plugin->getLogger()->info("Last generated token has expired!  Please generate a new one!");
+		}
 		$this->plugin->getServer()->getScheduler()->cancelTask($this->getTaskId());
 	}
 }
