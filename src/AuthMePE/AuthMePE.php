@@ -56,7 +56,11 @@ class AuthMePE extends PluginBase implements Listener{
 	
 	private $specter = false;
 	
-	const VERSION = "0.1.3";
+	const VERSION = "0.1.4";
+	
+	public function getInstance(){
+	  return $this;
+	}
 	
 	public function onEnable(){
 		$sa = $this->getServer()->getPluginManager()->getPlugin("SimpleAuth");
@@ -64,17 +68,17 @@ class AuthMePE extends PluginBase implements Listener{
 			$this->getLogger()->notice("SimpleAuth has been disabled as it's a conflict plugin");
 			$this->getServer()->getPluginManager()->disablePlugin($this);
 		}
-		if(!is_dir($this->getPluginDir())){
-			@mkdir($this->getServer()->getDataPath()."plugins/hoyinm14mc_plugins");
-			mkdir($this->getPluginDir());
+		if(!is_dir($this->getDataFolder())){
+		  mkdir($this->getDataFolder());
 		}
-	  $this->cfg = new Config($this->getPluginDir()."config.yml", Config::YAML, array());
-	  $this->reloadConfigFile();
-		if(!is_dir($this->getPluginDir()."data")){
-			mkdir($this->getPluginDir()."data");
+		$this->saveDefaultConfig();
+	  $this->cfg = $this->getConfig();
+	  $this->reloadConfig();
+		if(!is_dir($this->getDataFolder()."data")){
+			mkdir($this->getDataFolder()."data");
 		}
-		$this->data = new Config($this->getPluginDir()."data/data.yml", Config::YAML, array());
-		$this->ip = new Config($this->getPluginDir()."data/ip.yml", Config::YAML);
+		$this->data = new Config($this->getDataFolder()."data/data.yml", Config::YAML, array());
+		$this->ip = new Config($this->getDataFolder()."data/ip.yml", Config::YAML);
 		$this->specter = false; //Force false
 		$sp = $this->getServer()->getPluginManager()->getPlugin("Specter");
 		if($sp !== null){
@@ -90,44 +94,8 @@ class AuthMePE extends PluginBase implements Listener{
 		$this->getLogger()->info(TextFormat::GREEN."Loaded Successfully!");
 	}
 	
-	public function getPluginDir(){
-		return $this->getServer()->getDataPath()."plugins/hoyinm14mc_plugins/AuthMePE/";
-	}
-	
 	public function configFile(){
-		return $this->cfg;
-	}
-	
-	public function reloadConfigFile(){
-		 $c = $this->cfg->getAll();
-		 if(!isset($c["tries-allowed-to-enter-password"])){
-		   $c["tries-allowed-to-enter-password"] = 3;
-		 }
-		 if(!isset($c["time-unban-after-tries-ban-minutes"])){
-		   $c["time-unban-after-tries-ban-minutes"] = 2;
-		 }
-		 if(!isset($c["force-spawn"])){
-		 $c["force-spawn"] = false;
-		 }
-	  if(!isset($c["login-timeout"])){
-	  	$c["login-timeout"] = 30;
-	  }
-	  if(!isset($c["min-password-length"])){
-	  	$c["min-password-length"] = 6;
-	  }
-	  if(!isset($c["sessions"])){
-	  	$c["sessions"]["enabled"] = true;
-	  	$c["sessions"]["session-login-available-minutes"] = 10;
-	  }
-	  if(!isset($c["email"])){
-	  	$c["email"]["remind-players-add-email"] = true;
-	  }
-	  $this->cfg->setAll($c);
-	  $this->cfg->save();
-	  if(!is_numeric($this->cfg->get("login-timeout"))){
-	  	$this->getLogger()->error("'login-timeout'/'min-password-length'/'session-login-available-minutes' in ".$this->getPluginDir()."config.yml must be numeric!");
-	  	$this->getServer()->getPluginManager()->disablePlugin($this);
-	  }
+		return $this->getConfig();
 	}
 	
 	public function onDisable(){
@@ -176,6 +144,15 @@ class AuthMePE extends PluginBase implements Listener{
 		
 		$this->login[$player->getName()] = $player->getName();
 		
+		$this->getServer()->broadcastMessage("- §l§b".$player->getName()." §r§eis now online!");
+		
+		if($c["vanish-nonloggedin-players"] !== false){
+		  foreach($this->getServer()->getOnlinePlayers() as $p){
+		    $p->showPlayer($player);
+		    $player->sendPopup("§7You are now visible");
+		  }
+		}
+		
 		if($event->getMethod() == 0){
 			//Do these things for what?
 			//Bacause sound can't be played when keyboard is opened
@@ -207,10 +184,16 @@ class AuthMePE extends PluginBase implements Listener{
 			  $this->data->save();
 			  $this->ban($player->getName());
 			  $c = $this->configFile()->getAll();
-			  $this->getServer()->getScheduler()->scheduleDelayedTask(new UnbanTask($this, $player), $c["time-unban-after-tries-ban-minutes"] * 1200);
+			  $this->getServer()->getScheduler()->scheduleDelayedTask(new UnbanTask($this, $player), $c["time-unban-after-tries-ban-minutes"] * 20 * 60);
 			}
 			
 			return false;
+		}
+		
+		if($t[$player->getName()]["times"] !== 0){
+		  $t[$player->getName()]["times"] = 0;
+		  $this->data->setAll($t);
+		  $this->data->save();
 		}
 		
 		$this->auth($player, 0);
@@ -234,7 +217,17 @@ class AuthMePE extends PluginBase implements Listener{
 		 $player->setHealth($player->getHealth() + 1);
 		 $this->getServer()->getScheduler()->scheduleDelayedTask(new SoundTask($this, $player, 2), 7);
 		 
+		 $this->getServer()->broadcastMessage("- §l§b".$player->getName()." §r§cis now offline!");
+		 
 		 $this->getLogger()->info("Player ".$player->getName()." has logged out.");
+		 
+		 $c = $this->configFile()->getAll();
+		 if($c["vanish-nonloggedin-players"] !== false){
+		   foreach($this->getServer()->getOnlinePlayers() as $p){
+		     $p->hidePlayer($player);
+		     $player->sendPopup("§7You are now invisible");
+		   }
+		 }
 		
 		unset($this->login[$player->getName()]);
 	}
@@ -359,6 +352,7 @@ class AuthMePE extends PluginBase implements Listener{
 	}
 	
 	public function onJoin(PlayerJoinEvent $event){
+	  $event->setJoinMessage(null);
 		$t = $this->data->getAll();
 		$c = $this->configFile()->getAll();
 		if($this->isBanned($event->getPlayer()->getName()) !== false){
@@ -421,6 +415,7 @@ class AuthMePE extends PluginBase implements Listener{
 	}
 	
 	public function onQuit(PlayerQuitEvent $event){
+	  $event->setQuitMessage(null);
 		$t = $this->data->getAll();
 		$c = $this->configFile()->getAll();
 		if($this->isLoggedIn($event->getPlayer())){
@@ -429,8 +424,17 @@ class AuthMePE extends PluginBase implements Listener{
 				$this->startSession($event->getPlayer(), $c["sessions"]["session-login-available-minutes"]);
 			}
 		}else{
-                        $this->ip->set($event->getPlayer()->getName(), "removed due security issue");
-                }
+		  /*
+		   * This is added due to a security issue.
+		   *
+		   * When a player joins, if he did not login and quit and join again, they can be logged in by ip address
+		   *
+		   */
+		  if($this->isSessionAvailable($event->getPlayer()) !== true){
+		    $this->ip->set($event->getPlayer()->getName(), "0.0.0.0");
+		    $this->ip->save();
+		  }
+		}
 		if(!$this->isRegistered($event->getPlayer()) && isset($t[$event->getPlayer()->getName()])){
 			unset($t[$event->getPlayer()->getName()]);
 			$this->data->setAll($t);
@@ -454,11 +458,10 @@ class AuthMePE extends PluginBase implements Listener{
 			  			case "reload":
 			  			  $this->getServer()->broadcastMessage("§bAuthMePE§d> §eReload starts!");
 			  			  $this->getServer()->broadcastMessage("§7Reloading configuration..");
-			  			  $this->configFile()->reload();
+			  			  $this->reloadConfig();
 			  			  $this->getServer()->broadcastMessage("§7Reloading data files..");
 			  			  $this->data->reload();
 			  			  $this->ip->reload();
-			  			  //$this->bans->reload();
 			  			  $this->getServer()->broadcastMessage("§7Checking configuration..");
 			  			  $this->reloadConfigFile();
 			  			  $this->getServer()->broadcastMessage("§bAuthMePE§d> §aReload Complete!");
@@ -493,7 +496,7 @@ class AuthMePE extends PluginBase implements Listener{
 			  			  	$target = $args[1];
 			  			  	$t = $this->data->getAll();
 			  			  	if(isset($t[$target])){
-			  			  		$t[$target]["password"] = md5($args[2].$this->salt($args[2])) ;
+			  			  		$t[$target]["password"] = md5($args[2].$this->salt($args[2]));
 			  			  		$this->data->setAll($t);
 			  			  		$this->data->save();
 			  			  		$issuer->sendMessage("§aYou changed §d".$target."§a's password to §b§l".$args[2]);
@@ -517,9 +520,11 @@ class AuthMePE extends PluginBase implements Listener{
 			  			    $password = $args[2];
 			  			    $t = $this->data->getAll();
 			  			    if(!isset($t[$target])){
-			  			      $t[$target]["password"] = $args[2];
-			  			      $t[$target]["ip"] = "no";
+			  			      $t[$target]["password"] = md5($password.$this->salt($password));
+			  			      $t[$target]["ip"] = "yes";
 			  			      $t[$target]["times"] = 0;
+			  			      $this->data->setAll($t);
+			  			      $this->data->save();
 			  			      $issuer->sendMessage("§aYou helped §b".$target." §ato register!");
 			  			      return true;
 			  			    }else{
