@@ -106,7 +106,7 @@ class AuthMePE extends PluginBase implements Listener{
 	
 	public function onDisable(){
 		foreach($this->getLoggedIn() as $p){
-			$this->logout($p);
+			$this->logout($this->getServer()->getPlayer($p));
 		}
 		foreach($this->bans as $banned_players){
 		  $this->unban($banned_players);
@@ -132,6 +132,18 @@ class AuthMePE extends PluginBase implements Listener{
 	    $randomString = $characters[rand(0, $charactersLength - 1)]; 
 	  } 
 	  return $randomString; 
+	}
+	
+	public function hide(Player $player){
+	  foreach($this->getServer()->getOnlinePlayers() as $p){
+	    $p->hidePlayer($player);
+	  }
+	}
+	
+	public function show(Player $player){
+	  foreach($this->getServer()->getOnlinePlayers() as $p){
+	    $p->showPlayer($player);
+	  }
 	}
 	
 	public function isLoggedIn(Player $player){
@@ -242,6 +254,8 @@ class AuthMePE extends PluginBase implements Listener{
 		     $p->hidePlayer($player);
 		     $player->sendPopup("§7You are now invisible");
 		   }
+		 }else{
+		   
 		 }
 		
 		unset($this->login[$player->getName()]);
@@ -501,7 +515,7 @@ class AuthMePE extends PluginBase implements Listener{
 			  			  $this->data->reload();
 			  			  $this->ip->reload();
 			  			  $this->getServer()->broadcastMessage("§7Checking configuration..");
-			  			  $this->reloadConfigFile();
+			  			  $this->reloadConfig();
 			  			  $this->getServer()->broadcastMessage("§bAuthMePE§d> §aReload Complete!");
 			  			  return true;
 			  			break;
@@ -1263,4 +1277,5 @@ class TokenDeleteTask extends PluginTask{
 		$this->plugin->getServer()->getScheduler()->cancelTask($this->getTaskId());
 	}
 }
+
 ?>
