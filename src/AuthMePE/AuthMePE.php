@@ -54,15 +54,15 @@ use specter\network\SpecterPlayer;
 
 class AuthMePE extends PluginBase implements Listener{
 	
-	private $login = array();
-	private $session = array();
-	private $bans = array();
+	private $login = [];
+	private $session = [];
+	private $bans = [];
 	
 	private $token_generated = null;
 	
 	private $specter = false;
 	
-	const VERSION = "0.1.4";
+	const VERSION = "0.1.5";
 	
 	public function getInstance(){
 	  return $this;
@@ -106,10 +106,10 @@ class AuthMePE extends PluginBase implements Listener{
 	
 	public function onDisable(){
 		foreach($this->getLoggedIn() as $p){
-			$this->logout($this->getServer()->getPlayer($p));
+			unset($this->login[$p]);
 		}
 		foreach($this->bans as $banned_players){
-		  $this->unban($banned_players);
+		  unset($this->bans[$banned_players]);
 		}
 	}
 	
