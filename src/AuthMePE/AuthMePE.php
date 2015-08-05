@@ -64,7 +64,7 @@ class AuthMePE extends PluginBase implements Listener{
 	
 	const VERSION = "0.1.5";
 	
-	public function getInstance(){
+	public static function getInstance(){
 	  return $this;
 	}
 	
