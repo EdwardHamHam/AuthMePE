@@ -54,6 +54,7 @@ use specter\network\SpecterPlayer;
 
 class AuthMePE extends PluginBase implements Listener{
 	
+	private static $instance = null;
 	private $login = [];
 	private $session = [];
 	private $bans = [];
@@ -63,10 +64,6 @@ class AuthMePE extends PluginBase implements Listener{
 	private $specter = false;
 	
 	const VERSION = "0.1.5";
-	
-	public static function getInstance(){
-	  return $this;
-	}
 	
 	public function onEnable(){
 		$sa = $this->getServer()->getPluginManager()->getPlugin("SimpleAuth");
@@ -86,6 +83,7 @@ class AuthMePE extends PluginBase implements Listener{
 		$this->data = new Config($this->getDataFolder()."data/data.yml", Config::YAML, array());
 		$this->ip = new Config($this->getDataFolder()."data/ip.yml", Config::YAML);
 		$this->specter = false; //Force false
+		self::$instance = $this;
 		$sp = $this->getServer()->getPluginManager()->getPlugin("Specter");
 		if($sp !== null){
 			$this->getServer()->getLogger()->info("Loaded with Specter!");
@@ -98,6 +96,10 @@ class AuthMePE extends PluginBase implements Listener{
 		  $this->getServer()->shutdown();
 		}
 		$this->getLogger()->info(TextFormat::GREEN."Loaded Successfully!");
+	}
+	
+	public static function getInstance(){
+	  return self::$instance;
 	}
 	
 	public function configFile(){
