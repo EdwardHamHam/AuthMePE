@@ -36,7 +36,3 @@ A port of Bukkit's AuthMe_Reloaded to PocketMine
 16. Token system - Generate token in console,
     Login with any names with the token
     (This system is super secure XD)
-
-
-[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/CyberCube-hk/authmepe/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
-
