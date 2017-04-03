@@ -1,3 +1,5 @@
+# NOTE:
+This is the InDev branch. It is for the plugin's work-in-progress features, that have not been fully tested. It is highly advised to NOT USE IN PRODUCTION. Please use the 'master' branch if possible, as it has been tested, and is the most stable. Thank you.
 # AuthMePE
 A port of Bukkit's AuthMe_Reloaded to PocketMine
 
