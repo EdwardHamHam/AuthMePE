@@ -1,6 +1,8 @@
 # AuthMePE
 A port of Bukkit's AuthMe_Reloaded to PocketMine
 
+[![Poggit-CI](https://poggit.pmmp.io/ci.badge/Edwardthedog2/AuthMePE/AuthMePE)](https://poggit.pmmp.io/ci/Edwardthedog2/AuthMePE/AuthMePE)
+
 # Features:
 
 1. Register / Login / ChangePassword
