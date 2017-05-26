@@ -25,9 +25,9 @@ use pocketmine\command\ConsoleCommandSender;
 use pocketmine\command\Command;
 
 use pocketmine\level\Level;
-use pocketmine\level\sound\BatSound;
-use pocketmine\level\sound\PopSound;
-use pocketmine\level\sound\LaunchSound;
+///use pocketmine\level\sound\BatSound;
+//use pocketmine\level\sound\PopSound;
+//use pocketmine\level\sound\LaunchSound;
 use pocketmine\level\Position;
 use pocketmine\math\Vector3;
 
@@ -190,7 +190,7 @@ class AuthMePE extends PluginBase implements Listener{
 			$this->getServer()->getScheduler()->scheduleDelayedTask(new SoundTask($this, $player, 1), 7);
 			return false;
 		}
-		$player->getLevel()->addSound(new BatSound($player), $this->getServer()->getOnlinePlayers());
+		//$player->getLevel()->addSound(new BatSound($player), $this->getServer()->getOnlinePlayers());
 	}
 	
 	public function login(Player $player, $password){
