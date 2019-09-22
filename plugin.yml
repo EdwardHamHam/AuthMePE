@@ -1,7 +1,7 @@
 name: AuthMePE
 main: AuthMePE\AuthMePE
-api: 3.0.0-ALPHA7
-version: 1.0.1
+api: 3.9.4
+version: 1.12.0
 author: hoyinm14mc, Edwardthedog2
 description: Port of most features of Bukkit's AuthMe_Reloaded
 
